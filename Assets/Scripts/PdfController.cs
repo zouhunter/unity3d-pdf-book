@@ -3,6 +3,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Events;
 using System.Collections;
+
+
 using System.Drawing;
 using System.Drawing.Imaging;
 using O2S.Components.PDFRender4NET;
@@ -19,7 +21,7 @@ public class PdfController : IPdfController
     {
         this.pdfFileName = pdfFileName;
         this.picureConfig = config;
-        tempPath = Application.temporaryCachePath + "/ImageCache/" + Path.GetFileNameWithoutExtension(this.pdfFileName);
+        tempPath = Application.streamingAssetsPath + "/ImageCache/" + Path.GetFileNameWithoutExtension(this.pdfFileName);
         Directory.CreateDirectory(tempPath);
         pdfFile = PDFFile.Open(this.pdfFileName);
     }
@@ -31,15 +33,8 @@ public class PdfController : IPdfController
             return pdfFile != null ? pdfFile.PageCount : 0;
         }
     }
-    public bool GetFilePath(int page, UnityAction<string> fileAction)
+    public bool GetFilePath(int page, UnityAction<byte[]> fileAction)
     {
-        string imagePath = tempPath + "/" + page + "." + "png";
-        if (File.Exists(imagePath))
-        {
-            if (fileAction != null) fileAction(imagePath);
-            return true;
-        }
-
         if (pdfFile == null) return false;
 
         Debug.Log(1);
@@ -49,23 +44,28 @@ public class PdfController : IPdfController
         if (map == null) return false;
         Debug.Log(3);
 
-        ImageFormat format = picureConfig.imageFormat ?? ImageFormat.Png;
         map = SetPictureAlpha(map, (int)picureConfig.transparent);
         Debug.Log(4);
 
-        Debug.Log(imagePath);
-        FileStream stream = new FileStream(imagePath,FileMode.OpenOrCreate);
-        map.Save(stream, format);
-        stream.Dispose();
-        stream.Close();
+        byte[] bytes = BitMapToArray(map);
         Debug.Log(5);
 
-        if (fileAction != null) fileAction(imagePath);
+        if (fileAction != null) fileAction(bytes);
         return true;
     }
     public void ClearOldFiles()
     {
         Directory.Delete(tempPath);
+    }
+
+    private byte[] BitMapToArray(Bitmap bmp)
+    {
+        MemoryStream ms = new MemoryStream();
+        byte[] bytes;
+        bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+        bytes = ms.GetBuffer();  //byte[]   bytes=   ms.ToArray(); 这两句都可以，至于区别么，下面有解释
+        ms.Close();
+        return bytes;
     }
     /// <summary>  
     /// 设置图片的透明度  
@@ -96,3 +96,4 @@ public class PdfController : IPdfController
         return bmp;
     }
 }
+
